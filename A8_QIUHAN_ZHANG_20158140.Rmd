@@ -1,0 +1,124 @@
+---
+title: "A8_metabar"
+author: "Qiuhan Zhang"
+date: "2023-03-08"
+output: html_document
+---
+
+[My Repository](https://github.com/qiuhan1008/Assignment8.git)
+```{r}
+#import dataset
+library(readr)
+Mydata<- read_csv("FloristicSurvey.csv")
+#change population to character
+Mydata$Population <- as.character(Mydata$Population)
+head(Mydata)
+```
+
+# Bray-Curtis dissimilarity
+```{r}
+#install.packages("vegan")
+library(vegan)
+Subdata <- subset(Mydata[, 11:44])
+row.names(Subdata) <- Mydata$Quadrate
+```
+
+```{r fig.align = 'center'}
+S_dist<- vegdist(Subdata, method = "bray", binary = F)
+SDistMat <- as.matrix(S_dist)
+library(reshape2)
+SDat <- melt(SDistMat)
+library(ggplot2)
+ggplot(SDat, aes(Var1, Var2, fill = value)) +
+  geom_tile() + 
+  scale_fill_gradientn(colours = rainbow(4), alpha(0.8)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+```
+Fig.1.The plot demonstrates the degree of similarity / dissimilarity in the abundance of species across sample locations at QUBS. Color ranges from red to purple represent values from 0 to 1. From 13o1 - 13o3, there's no presence of garlic mustard. 
+
+
+
+##NJ Tree grouped presence of garlic mustard
+```{r fig.align = 'center'}
+library(ape)
+library(ggtree)
+STreeNJ <- nj(S_dist)
+# use gsub to highlight the presentence of garlic mustard as to see if it affects the species abundance.
+Pres <- gsub(".*([o|i]).*", "\\1", STreeNJ$tip.label)
+# group 'tip.labels' by their corresponding treatment
+TreatGroups <- split(STreeNJ$tip.label, Pres)
+# use the groupOTU function to apply the grouping information for plotting
+SDTcol <- groupOTU(STreeNJ, TreatGroups)
+# plot
+ggtree(SDTcol, layout = "rectangular", aes(color = group)) + 
+  geom_tiplab(size = 2) +
+  theme(legend.position="right") +
+  scale_colour_manual(name = "garlic mustard", 
+                      values = c("red", "black"), 
+                      labels = c("present", "absent"))
+## NJ Tree grouped by populations
+```
+Fig.2.The neighbour-joining tree clustered sample depends on the species abundance. The presence of garlic mustard were labeled by red and absent is in black.
+
+
+```{r fig.align = 'center'}
+# use gsub to highlight the presentence of garlic mustard as to see if it affects the species abundance.
+Pop <- gsub("(.*)[o|i].*", "\\1", STreeNJ$tip.label)
+# group 'tip.labels' by their corresponding treatment
+PopGroups <- split(STreeNJ$tip.label, Pop)
+# use the groupOTU function to apply the grouping information for plotting
+SDTcol2 <- groupOTU(STreeNJ, PopGroups)
+# plot
+ggtree(SDTcol2, layout = "rectangular", aes(color = group)) + 
+  geom_tiplab(size = 2) +
+  theme(legend.position="right") +
+  scale_colour_manual(name = "population", 
+                      values = rainbow(5), 
+                      labels = c("1", "3", "7", "13", "14"))
+```
+Figure 3. This tree clusters samples based on the similarity of their species abundance. The 5 sampling populations are colorered.
+
+### NMDS
+```{r fig.align = 'center'}
+set.seed(20)
+NMDSdat <- metaMDS(S_dist, k = 2, trymax = 100)
+```
+```{r}
+SDat2 <- data.frame(NMDS1 = NMDSdat$points[,1],
+                    NMDS2 = NMDSdat$points[,2],
+                    Quadrate = row.names(Subdata))
+SDat2 <- merge(SDat2, Mydata, by = "Quadrate", all.x = T, all.y = F)
+qplot(x = NMDS1, y = NMDS2,colour = Population, shape = Location, alpha = I(0.6), data = SDat2) + 
+  theme_bw()
+```
+Fig.4. A NMDS plot showed the variation in species abundance across different populations and the presence of garlic mustard. Different colors inducate different populations, different shapes stands for different locations. 
+
+
+# Report
+
+Garlic mustard (Alliaria petiolata) is an native herb to Europe, but an invasive specie in North America -- it brough negative impact on the local ecological interactions. Based on the distance matrix cisualization, the plant species abundance of the communities is different across sample locations especially the population at locatino 23 where no garlic mustard was present (Fig.1.).The neighbor joining tree (Fig.2.) reveal that the presence of garlic mustard will potentialy drive the species abundance differentiation. Fig.3 shows the location can also influnce biodiveersity. Fig.4.shows that the sampling location has a stronger effect on plant compared with the introduce of garlic mustard since the points from one population stays together. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
